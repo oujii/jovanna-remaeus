@@ -1,0 +1,54 @@
+---
+import type { Project } from '../data/projects';
+
+interface Props {
+  project: Project;
+  index: number;
+}
+
+const { project, index } = Astro.props;
+const num = String(index + 1).padStart(2, '0');
+---
+
+<div class="proj" data-idx={index}>
+  <div class="card-video-wrap">
+    <video loop muted playsinline preload="metadata">
+      <source src={project.videoSrc} type="video/mp4" />
+    </video>
+    <div class="card-shade"></div>
+    <div class="card-num">{num}</div>
+    <div class="card-type">{project.type}</div>
+    <div class="card-overlay">
+      <div class="card-title">{project.title}</div>
+      <div class="card-meta">{project.director} · {project.year}</div>
+    </div>
+    <div class="card-expand-hint">›</div>
+  </div>
+  <div class="card-details">
+    <div class="card-details-inner">
+      <div class="card-details-body">
+        <div class="detail-grid">
+          <div class="detail-item">
+            <div class="detail-label">Director</div>
+            <div class="detail-value">{project.director}</div>
+          </div>
+          <div class="detail-item">
+            <div class="detail-label">Production</div>
+            <div class="detail-value">{project.production}</div>
+          </div>
+          <div class="detail-item">
+            <div class="detail-label">Year</div>
+            <div class="detail-value">{project.year}</div>
+          </div>
+          <div class="detail-item">
+            <div class="detail-label">Format</div>
+            <div class="detail-value">{project.format}</div>
+          </div>
+        </div>
+        <button class="enter-btn" data-enter={index}>
+          Play fullscreen <span class="enter-arrow">↑</span>
+        </button>
+      </div>
+    </div>
+  </div>
+</div>

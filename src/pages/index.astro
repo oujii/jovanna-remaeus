@@ -1,0 +1,184 @@
+---
+import Header from '../components/Header.astro';
+import ProjectCard from '../components/ProjectCard.astro';
+import ReelView from '../components/ReelView.astro';
+import { projects } from '../data/projects';
+import '../styles/global.css';
+---
+
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+    <title>Jovanna Remaeus</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,500;1,300;1,400&family=DM+Sans:wght@300;400;500&display=swap"
+      rel="stylesheet"
+    />
+  </head>
+  <body>
+    <Header />
+
+    <div id="list-view">
+      {projects.map((project, i) => (
+        <ProjectCard project={project} index={i} />
+      ))}
+      <div class="list-footer">Jovanna Remaeus — Production Designer</div>
+    </div>
+
+    <ReelView projects={projects} />
+
+    <script>
+      const projs      = document.querySelectorAll<HTMLElement>('.proj');
+      const cardWraps  = document.querySelectorAll<HTMLElement>('.card-video-wrap');
+      const listVids   = document.querySelectorAll<HTMLVideoElement>('.card-video-wrap video');
+      const slides     = document.querySelectorAll<HTMLElement>('.slide');
+      const slideVids  = document.querySelectorAll<HTMLVideoElement>('.slide video');
+      const stripItems = document.querySelectorAll<HTMLElement>('.strip-item');
+
+      let expandedIdx: number | null = null;
+      let muted = true;
+
+      // Build progress dots
+      const dotsEl = document.getElementById('reel-dots')!;
+      slides.forEach((_, i) => {
+        const d = document.createElement('div');
+        d.className = 'rdot' + (i === 0 ? ' active' : '');
+        dotsEl.appendChild(d);
+      });
+
+      // ── Autoplay list videos via IntersectionObserver ──
+      const listObs = new IntersectionObserver((entries) => {
+        entries.forEach(e => {
+          const v = (e.target as HTMLElement).querySelector('video') as HTMLVideoElement;
+          if (e.isIntersecting && e.intersectionRatio > 0.3) {
+            v.play().catch(() => {});
+          } else {
+            v.pause();
+          }
+        });
+      }, { threshold: 0.3 });
+
+      cardWraps.forEach(w => listObs.observe(w));
+
+      // ── Tap card to expand/collapse ──
+      function tapCard(idx: number) {
+        const proj = projs[idx];
+        const isOpen = proj.classList.contains('open');
+
+        if (expandedIdx !== null && expandedIdx !== idx) {
+          projs[expandedIdx].classList.remove('open');
+        }
+
+        proj.classList.toggle('open', !isOpen);
+        expandedIdx = isOpen ? null : idx;
+
+        if (!isOpen) {
+          setTimeout(() => {
+            proj.scrollIntoView({ behavior: 'smooth', block: 'start' });
+          }, 80);
+        }
+      }
+
+      cardWraps.forEach((wrap, i) => {
+        wrap.addEventListener('click', () => tapCard(i));
+      });
+
+      // ── Enter fullscreen ──
+      function enterFullscreen(idx: number) {
+        const lv = listVids[idx];
+        const sv = slideVids[idx];
+        if (lv && sv && lv.readyState >= 2) sv.currentTime = lv.currentTime;
+        lv.pause();
+
+        slides[idx].scrollIntoView({ behavior: 'instant' });
+        sv.muted = muted;
+        sv.play().catch(() => {});
+
+        document.getElementById('list-view')!.classList.add('out');
+        document.getElementById('reel-view')!.classList.add('in');
+        document.body.classList.add('fullscreen');
+
+        syncStrip(idx);
+        syncDots(idx);
+      }
+
+      document.querySelectorAll<HTMLElement>('.enter-btn').forEach(btn => {
+        btn.addEventListener('click', (e) => {
+          e.stopPropagation();
+          const idx = parseInt(btn.dataset.enter!);
+          enterFullscreen(idx);
+        });
+      });
+
+      // ── Go home ──
+      function goHome() {
+        if (!document.body.classList.contains('fullscreen')) return;
+        slideVids.forEach(v => v.pause());
+        document.getElementById('reel-view')!.classList.remove('in');
+        document.getElementById('list-view')!.classList.remove('out');
+        document.body.classList.remove('fullscreen');
+
+        if (expandedIdx !== null) listVids[expandedIdx].play().catch(() => {});
+      }
+
+
+      // ── Reel autoplay ──
+      const reelObs = new IntersectionObserver((entries) => {
+        entries.forEach(e => {
+          const v = (e.target as HTMLElement).querySelector('video') as HTMLVideoElement;
+          if (e.isIntersecting && e.intersectionRatio > 0.5) {
+            v.muted = muted;
+            v.play().catch(() => {});
+            const i = parseInt((e.target as HTMLElement).dataset.idx!);
+            syncStrip(i); syncDots(i);
+          } else {
+            v.pause();
+          }
+        });
+      }, { threshold: 0.5 });
+
+      slides.forEach(s => reelObs.observe(s));
+
+      // Tap reel to mute/unmute
+      document.getElementById('reel')!.addEventListener('click', toggleMute);
+
+      function toggleMute() {
+        muted = !muted;
+        slideVids.forEach(v => { v.muted = muted; });
+        const btn = document.getElementById('rsound')!;
+        btn.textContent = muted ? '♪ Unmute' : '♪ Mute';
+        btn.classList.toggle('on', !muted);
+      }
+
+      document.getElementById('rsound')!.addEventListener('click', (e) => {
+        e.stopPropagation();
+        toggleMute();
+      });
+
+      // ── Swipe down to go home ──
+      let touchY = 0;
+      const reelEl = document.getElementById('reel')!;
+      reelEl.addEventListener('touchstart', e => { touchY = e.touches[0].clientY; }, { passive: true });
+      reelEl.addEventListener('touchend', e => {
+        if (e.changedTouches[0].clientY - touchY > 70 && reelEl.scrollTop < 8) goHome();
+      }, { passive: true });
+
+      stripItems.forEach((item, i) => {
+        item.addEventListener('click', () => {
+          slides[i].scrollIntoView({ behavior: 'smooth' });
+        });
+      });
+
+      function syncStrip(idx: number) {
+        stripItems.forEach((it, i) => it.classList.toggle('active', i === idx));
+        stripItems[idx]?.scrollIntoView({ behavior: 'smooth', inline: 'center', block: 'nearest' });
+      }
+      function syncDots(idx: number) {
+        document.querySelectorAll('.rdot').forEach((d, i) => d.classList.toggle('active', i === idx));
+      }
+    </script>
+  </body>
+</html>
